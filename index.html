@@ -59,14 +59,20 @@
     (function(){
       var panel=document.getElementById('boot'),status=document.getElementById('boot-status'),detail=document.getElementById('boot-detail'),retry=document.getElementById('boot-retry');
       window.__bootState='starting';
-      window.__bootStatus=function(message){if(window.__bootState!=='failed')status.textContent=message;};
+      var lastStatus='',foreign=0;
+      window.__bootStatus=function(message){lastStatus=message;if(window.__bootState!=='failed')status.textContent=message;};
       window.__bootFail=function(message){window.__bootState='failed';panel.hidden=false;status.textContent='3D 暫時未能開啟。請嘗試 Safari 網站連結。';detail.textContent=String(message||'');retry.hidden=false;clearTimeout(timer);};
       window.__bootReady=function(){if(window.__bootState==='failed')return;window.__bootState='ready';panel.hidden=true;clearTimeout(timer);};
       retry.onclick=function(){location.reload();};
-      window.addEventListener('error',function(e){if(e.message)window.__bootFail(e.message);});
+      // Browsers and in-app viewers inject their own scripts (Brave Shields/translate, Instagram, password managers).
+      // When one of those throws, the page only sees an opaque "Script error." with no source. It is not ours: ignore it.
+      window.addEventListener('error',function(e){
+        if(!e.error&&!e.filename&&(!e.message||/^script error\.?$/i.test(e.message))){foreign++;return;}
+        if(e.message)window.__bootFail(e.message);
+      });
       window.addEventListener('unhandledrejection',function(e){window.__bootFail(e.reason&&e.reason.message||String(e.reason));});
       document.getElementById('app').addEventListener('webglcontextlost',function(e){e.preventDefault();window.__bootFail('畫面資源不足或繪圖連線中斷。請重新載入。');});
-      var timer=setTimeout(function(){if(window.__bootState!=='ready')window.__bootFail('載入未完成；請改用 Safari 網站連結，或重新載入。');},30000);
+      var timer=setTimeout(function(){if(window.__bootState!=='ready')window.__bootFail('載入未完成（停喺：'+lastStatus+(foreign?'；已略過瀏覽器外掛腳本錯誤 '+foreign+' 次':'')+'）。請重新載入，或者改用 Safari／Chrome 開啟。');},30000);
       window.__bootStatus('正在載入 3D 程式…');
     })();
   </script>
